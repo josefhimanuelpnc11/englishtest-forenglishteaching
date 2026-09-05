@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "postbuild": "node scripts/strip-ort-wasm.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

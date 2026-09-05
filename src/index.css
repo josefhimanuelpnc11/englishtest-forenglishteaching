@@ -827,34 +827,57 @@ button {
   height: 36px;
 }
 
-.gaze-overlay-skip {
-  position: absolute;
+.gaze-overlay-progress {
+  margin: 16px 0 0;
 
-  bottom: calc(
-    32px + env(safe-area-inset-bottom, 0px)
-  );
-
-  left: 50%;
-
-  transform: translateX(-50%);
-
-  border: none;
-
-  background: none;
-
-  padding: 12px 20px;
-
-  font: inherit;
+  text-align: center;
 
   font-size: 15px;
 
-  color: #9ca3af;
+  font-weight: 700;
 
-  text-decoration: underline;
+  color: white;
+}
 
-  cursor: pointer;
+.gaze-progress {
+  width: min(420px, 80%);
 
-  white-space: nowrap;
+  height: 6px;
+
+  margin: 12px auto 0;
+
+  border-radius: 3px;
+
+  background:
+    rgba(255, 255, 255, 0.15);
+
+  overflow: hidden;
+}
+
+.gaze-progress span {
+  display: block;
+
+  height: 100%;
+
+  width: 0;
+
+  border-radius: 3px;
+
+  background: #ef4444;
+
+  /* Must match DOT_WINDOW_MS in useGazeCalibration. */
+  animation: gaze-progress-fill 2.2s
+    linear forwards;
+}
+
+@keyframes gaze-progress-fill {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
 }
 
 .gaze-dot {

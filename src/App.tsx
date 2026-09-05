@@ -213,15 +213,6 @@ function App() {
     [],
   );
 
-  const handleGazeSkip = useCallback(() => {
-    console.log(
-      "[GAZE] Calibration skipped by student.",
-    );
-
-    setGazeRefs(null);
-    setGazePassed(true);
-  }, []);
-
   const handleCameraReady = useCallback(
     (stream: MediaStream) => {
       setCameraStream(stream);
@@ -696,7 +687,6 @@ function App() {
               onComplete={
                 handleGazeComplete
               }
-              onSkip={handleGazeSkip}
             />
           )}
 

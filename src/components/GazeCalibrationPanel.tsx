@@ -10,33 +10,30 @@ interface GazeCalibrationPanelProps {
   onComplete: (
     references: GazeReferences | null,
   ) => void;
-  onSkip: () => void;
 }
 
 /**
  * Pre-exam gaze calibration UI (Phase 1).
  *
  * Active calibration runs as a FULLSCREEN overlay:
- * dots at true viewport corners + center, so the
- * measured ratio range matches real screen looking.
- * (Calibrating inside a small box compressed the
- * range and misread fullscreen gaze.)
- *
- * After completion it collapses to an inline card
- * with the live debug map. Failing or skipping
- * never blocks the exam.
+ * dots at true viewport corners + center, each on
+ * an exact fixed timer so pacing is identical on
+ * every device. No skip path — calibration is
+ * mandatory. Only a technical failure (model cannot
+ * load) lets the exam proceed without gaze, and
+ * that is reported, not chosen.
  */
 export function GazeCalibrationPanel({
   mediaStream,
   enabled,
   onComplete,
-  onSkip,
 }: GazeCalibrationPanelProps) {
   const {
     phase,
     dotOrder,
     dotIndex,
     dotsTotal,
+    retriesInDot,
     error,
     livePoint,
     liveStatus,
@@ -98,12 +95,16 @@ export function GazeCalibrationPanel({
           },
         )}
 
-        <button
-          className="gaze-overlay-skip"
-          onClick={onSkip}
-        >
-          Lewati kalibrasi
-        </button>
+        <p className="gaze-overlay-progress">
+          Titik {Math.min(dotIndex + 1, dotsTotal)}/
+          {dotsTotal}
+        </p>
+
+        <div className="gaze-progress">
+          <span
+            key={`${dotIndex}-${retriesInDot}`}
+          />
+        </div>
       </div>
     );
   }

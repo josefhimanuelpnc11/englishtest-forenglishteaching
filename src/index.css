@@ -689,6 +689,168 @@ button {
   color: #166534;
 }
 
+.gaze-panel {
+  margin: 24px 0 0;
+
+  padding: 18px;
+
+  border-radius: 16px;
+
+  background: white;
+
+  border: 1px solid #e5e7eb;
+
+  box-shadow:
+    0 8px 30px
+      rgba(0, 0, 0, 0.05);
+}
+
+.gaze-panel > strong {
+  display: block;
+
+  margin-bottom: 4px;
+}
+
+.gaze-hint {
+  margin: 8px 0 0;
+
+  font-size: 14px;
+
+  color: #374151;
+}
+
+.gaze-dots {
+  position: relative;
+
+  height: 180px;
+
+  margin: 12px 0;
+
+  border-radius: 12px;
+
+  background: #f3f4f6;
+}
+
+.gaze-dot {
+  position: absolute;
+
+  width: 18px;
+
+  height: 18px;
+
+  border-radius: 50%;
+
+  background: #d1d5db;
+
+  transform: translate(-50%, -50%);
+}
+
+.gaze-dot.active {
+  width: 24px;
+
+  height: 24px;
+
+  background: #b91c1c;
+
+  animation: face-warning-pulse 1s
+    ease-in-out infinite;
+}
+
+.gaze-dot.done {
+  background: #16a34a;
+}
+
+.gaze-error {
+  margin: 12px 0 0;
+
+  padding: 12px;
+
+  border-radius: 10px;
+
+  font-size: 14px;
+
+  background: #fef3c7;
+
+  color: #92400e;
+}
+
+.gaze-success {
+  margin: 12px 0 0;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  color: #166534;
+}
+
+.gaze-map {
+  position: relative;
+
+  height: 140px;
+
+  margin: 12px 0 0;
+
+  border-radius: 12px;
+
+  background: #111827;
+}
+
+.gaze-map-dot {
+  position: absolute;
+
+  width: 16px;
+
+  height: 16px;
+
+  border-radius: 50%;
+
+  background: #22c55e;
+
+  box-shadow:
+    0 0 12px rgba(34, 197, 94, 0.9);
+
+  transform: translate(-50%, -50%);
+
+  transition:
+    left 0.3s ease,
+    top 0.3s ease;
+}
+
+.gaze-map-empty {
+  position: absolute;
+
+  inset: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-size: 13px;
+
+  color: #9ca3af;
+}
+
+.gaze-readout {
+  margin: 8px 0 0;
+
+  font-family: monospace;
+
+  font-size: 13px;
+
+  color: #374151;
+}
+
+.gaze-debug-line {
+  margin: 4px 0 0;
+
+  font-size: 12px;
+
+  color: #6b7280;
+}
+
 .precheck {
   margin: 24px 0 0;
 }

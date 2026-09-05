@@ -12,6 +12,8 @@ import { ExamHeader } from "./components/ExamHeader";
 
 import { FaceWarningBanner } from "./components/FaceWarningBanner";
 
+import { GazeCalibrationPanel } from "./components/GazeCalibrationPanel";
+
 import { QuestionCard } from "./components/QuestionCard";
 
 import { QuestionNavigator } from "./components/QuestionNavigator";
@@ -37,6 +39,8 @@ import {
 import type { ExamResult } from "./types/exam";
 
 import type { FaceMonitorStatus } from "./services/proctoring/types";
+
+import type { GazeReferences } from "./services/gaze/gazeMath";
 
 import type {
   LoginAttempt,
@@ -131,6 +135,17 @@ function App() {
       "checking" | "online" | "local"
     >("checking");
 
+  /**
+   * Phase 1 gaze calibration result.
+   * gazePassed also becomes true when calibration
+   * is skipped or fails — gaze never blocks exams.
+   */
+  const [gazeRefs, setGazeRefs] =
+    useState<GazeReferences | null>(null);
+
+  const [gazePassed, setGazePassed] =
+    useState(false);
+
   const syncedViolationsRef = useRef(0);
 
   /**
@@ -181,6 +196,28 @@ function App() {
     setAttempt(null);
     setPin("");
     setLoginError(null);
+  }, []);
+
+  const handleGazeComplete = useCallback(
+    (references: GazeReferences | null) => {
+      console.log(
+        "[GAZE] Calibration references:",
+        references,
+      );
+
+      setGazeRefs(references);
+      setGazePassed(true);
+    },
+    [],
+  );
+
+  const handleGazeSkip = useCallback(() => {
+    console.log(
+      "[GAZE] Calibration skipped by student.",
+    );
+
+    setGazeRefs(null);
+    setGazePassed(true);
   }, []);
 
   const handleCameraReady = useCallback(
@@ -480,7 +517,8 @@ function App() {
   const canStart =
     attempt != null &&
     cameraOk &&
-    faceReady;
+    faceReady &&
+    gazePassed;
 
   if (!started) {
     return (
@@ -625,12 +663,36 @@ function App() {
                     {faceLine}
                   </li>
 
+                  <li
+                    className={
+                      gazePassed ? "ok" : ""
+                    }
+                  >
+                    {gazePassed ? "●" : "○"}{" "}
+                    {gazePassed
+                      ? gazeRefs
+                        ? "Kalibrasi mata selesai"
+                        : "Kalibrasi mata dilewati"
+                      : "Kalibrasi mata"}
+                  </li>
+
                   <li className="info">
                     {backendLine}
                   </li>
                 </ul>
               </div>
             </>
+          )}
+
+          {attempt && faceReady && (
+            <GazeCalibrationPanel
+              mediaStream={cameraStream}
+              enabled={!started}
+              onComplete={
+                handleGazeComplete
+              }
+              onSkip={handleGazeSkip}
+            />
           )}
 
           {attempt && (

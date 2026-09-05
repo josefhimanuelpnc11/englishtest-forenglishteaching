@@ -72,14 +72,37 @@ const RIGHT = {
   check("center hy", r.hy, 0.5);
 }
 
-// 2. Iris toward inner corners -> hx 0.8 both eyes
+// 2. Conjugate movement (BOTH irises shift the SAME
+// image direction — the only thing real eyes do).
+// Image-left shift: left 0.35->0.32 (hx 0.2),
+// right 0.65->0.62 (hx 0.8); shared frame gives 0.2.
+{
+  const lm = blankLandmarks();
+  paintEye(lm, LEFT, 0.32, 0.5);
+  paintEye(lm, RIGHT, 0.62, 0.5);
+  const r = combinedGazeRatio(lm);
+  check("conjugate-left hx", r.hx, 0.2);
+  check("conjugate-left hy", r.hy, 0.5);
+}
+
+// 2b. Conjugate image-right shift -> 0.8 (monotonic).
+{
+  const lm = blankLandmarks();
+  paintEye(lm, LEFT, 0.38, 0.5);
+  paintEye(lm, RIGHT, 0.68, 0.5);
+  const r = combinedGazeRatio(lm);
+  check("conjugate-right hx", r.hx, 0.8);
+  check("conjugate-right hy", r.hy, 0.5);
+}
+
+// 2c. Opposite-direction shifts (vergence-like, never
+// real gaze) must NOT read as strong sideways gaze.
 {
   const lm = blankLandmarks();
   paintEye(lm, LEFT, 0.38, 0.5);
   paintEye(lm, RIGHT, 0.62, 0.5);
   const r = combinedGazeRatio(lm);
-  check("shifted hx", r.hx, 0.8);
-  check("shifted hy", r.hy, 0.5);
+  check("opposite shifts cancel", r.hx, 0.5);
 }
 
 // 3. Short array -> null
@@ -132,6 +155,18 @@ const RIGHT = {
     { dotIndex: 1, ratio: { hx: 0.3, hy: 0.3 } },
   ]);
   check("no-center null", refs === null ? 1 : 0, 1);
+}
+
+// 6b. Motionless samples (stared through all dots)
+// -> rejected, never a degenerate fit.
+{
+  const refs = fitCalibration(
+    [0, 1, 2, 3, 4].map((dotIndex) => ({
+      dotIndex,
+      ratio: { hx: 0.5, hy: 0.5 },
+    })),
+  );
+  check("motionless null", refs === null ? 1 : 0, 1);
 }
 
 // 7. Variance + stability

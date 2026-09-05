@@ -4,12 +4,18 @@
  * No DOM, no MediaPipe imports — every function here
  * is unit-testable with synthetic landmarks.
  *
- * Coordinate note: all ratios are computed per-eye from
- * that eye's own corners/lids, then averaged across eyes.
- * This makes the math immune to horizontal mirroring
- * (selfie preview flips) because calibration and live
- * tracking use the identical pipeline — any global flip
- * is absorbed by the personal references.
+ * Polarity note (critical): each eye's horizontal
+ * ratio rises toward its OWN nose, i.e. opposite
+ * world directions. Real gaze moves both irises the
+ * SAME image direction (conjugate movement), so a
+ * naive average of the two raw ratios cancels real
+ * left/right gaze out. The combination below first
+ * expresses both eyes in one common frame
+ * (1 - right) and only then averages. Vertical
+ * ratios share one polarity and average directly.
+ * Calibration absorbs any remaining global flip
+ * (mirrored pipelines), because dots map ratios to
+ * screen points empirically.
  */
 
 /**
@@ -71,20 +77,35 @@ export interface CalibrationDot {
 }
 
 /**
- * Five calibration targets in screen space.
- * Index 0 is always the center.
+ * Five fullscreen calibration targets in viewport
+ * fractions: true screen corners (inset for
+ * notches) plus the center. Index 0 is always the
+ * center — it anchors the personal references.
+ *
+ * Fullscreen matters: calibrating inside a small
+ * box compresses the ratio range so much that live
+ * exam-page gaze (full screen) maps wrongly.
  */
 export const CALIBRATION_DOTS: CalibrationDot[] =
   [
     { x: 0.5, y: 0.5 },
-    { x: 0.15, y: 0.2 },
-    { x: 0.85, y: 0.2 },
-    { x: 0.15, y: 0.8 },
-    { x: 0.85, y: 0.8 },
+    { x: 0.08, y: 0.12 },
+    { x: 0.92, y: 0.12 },
+    { x: 0.08, y: 0.88 },
+    { x: 0.92, y: 0.88 },
   ];
 
 const MIN_DENOMINATOR = 1e-6;
 const MIN_RADIUS = 1e-3;
+
+/**
+ * Minimum measured ratio spread across dots.
+ * Below this the eyes demonstrably did not move
+ * (staring through all dots, or broken tracking)
+ * and the fit is rejected so a bad calibration can
+ * never silently pass.
+ */
+const MIN_CALIBRATION_SPREAD = 0.03;
 const MAP_CLAMP = 1.2;
 
 export function averagePoint(
@@ -236,7 +257,10 @@ export function combinedGazeRatio(
   }
 
   return {
-    hx: (left.hx + right.hx) / 2,
+    // Shared frame: mirror the right eye before
+    // averaging so conjugate (same-direction)
+    // movements add up instead of cancelling.
+    hx: (left.hx + (1 - right.hx)) / 2,
     hy: (left.hy + right.hy) / 2,
   };
 }
@@ -249,7 +273,10 @@ export interface CalibrationSample {
 /**
  * Fits personal references from calibration samples.
  * Requires at least one sample on the center dot
- * (index 0). Returns null when unfittable.
+ * (index 0) AND a minimum measured eye-movement
+ * spread — a fit over motionless samples is
+ * rejected (returns null) instead of producing a
+ * degenerate mapping that misreads all live gaze.
  */
 export function fitCalibration(
   samples: CalibrationSample[],
@@ -283,18 +310,27 @@ export function fitCalibration(
     maxHy = Math.max(maxHy, sample.ratio.hy);
   }
 
+  const spreadX = Math.max(
+    center.hx - minHx,
+    maxHx - center.hx,
+  );
+
+  const spreadY = Math.max(
+    center.hy - minHy,
+    maxHy - center.hy,
+  );
+
+  if (
+    spreadX < MIN_CALIBRATION_SPREAD ||
+    spreadY < MIN_CALIBRATION_SPREAD
+  ) {
+    return null;
+  }
+
   return {
     center,
-    xRadius: Math.max(
-      center.hx - minHx,
-      maxHx - center.hx,
-      MIN_RADIUS,
-    ),
-    yRadius: Math.max(
-      center.hy - minHy,
-      maxHy - center.hy,
-      MIN_RADIUS,
-    ),
+    xRadius: Math.max(spreadX, MIN_RADIUS),
+    yRadius: Math.max(spreadY, MIN_RADIUS),
   };
 }
 

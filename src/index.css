@@ -774,16 +774,87 @@ button {
   color: #374151;
 }
 
-.gaze-dots {
-  position: relative;
+.gaze-overlay {
+  position: fixed;
 
-  height: 180px;
+  inset: 0;
 
-  margin: 12px 0;
+  z-index: 200;
 
-  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.97);
 
-  background: #f3f4f6;
+  padding:
+    calc(
+      32px + env(safe-area-inset-top, 0px)
+    )
+    24px
+    calc(
+      32px + env(safe-area-inset-bottom, 0px)
+    );
+}
+
+.gaze-overlay-title {
+  margin: 0;
+
+  text-align: center;
+
+  font-size: 22px;
+
+  font-weight: 800;
+
+  color: white;
+}
+
+.gaze-overlay-hint {
+  margin: 12px 0 0;
+
+  text-align: center;
+
+  font-size: 16px;
+
+  color: #d1d5db;
+}
+
+.gaze-overlay .gaze-dot {
+  width: 28px;
+
+  height: 28px;
+}
+
+.gaze-overlay .gaze-dot.active {
+  width: 36px;
+
+  height: 36px;
+}
+
+.gaze-overlay-skip {
+  position: absolute;
+
+  bottom: calc(
+    32px + env(safe-area-inset-bottom, 0px)
+  );
+
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  border: none;
+
+  background: none;
+
+  padding: 12px 20px;
+
+  font: inherit;
+
+  font-size: 15px;
+
+  color: #9ca3af;
+
+  text-decoration: underline;
+
+  cursor: pointer;
+
+  white-space: nowrap;
 }
 
 .gaze-dot {

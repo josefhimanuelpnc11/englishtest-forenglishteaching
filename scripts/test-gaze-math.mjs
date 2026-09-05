@@ -2,6 +2,7 @@
 import {
   CALIBRATION_DOTS,
   combinedGazeRatio,
+  describeFit,
   fitCalibration,
   gazeDeviation,
   isStableBatch,
@@ -160,13 +161,44 @@ const RIGHT = {
 // 6b. Motionless samples (stared through all dots)
 // -> rejected, never a degenerate fit.
 {
-  const refs = fitCalibration(
-    [0, 1, 2, 3, 4].map((dotIndex) => ({
-      dotIndex,
-      ratio: { hx: 0.5, hy: 0.5 },
-    })),
-  );
+  const still = [0, 1, 2, 3, 4].map((dotIndex) => ({
+    dotIndex,
+    ratio: { hx: 0.5, hy: 0.5 },
+  }));
+  const refs = fitCalibration(still);
   check("motionless null", refs === null ? 1 : 0, 1);
+  const desc = describeFit(still, 5);
+  check("motionless spreadX", desc.spreadX, 0);
+  check("motionless spreadY", desc.spreadY, 0);
+  check("motionless gate", desc.minSpread, 0.03);
+  check(
+    "motionless center",
+    desc.centerPresent ? 1 : 0,
+    1,
+  );
+  check("motionless dots", desc.dots.length, 5);
+}
+
+// 6c. Diagnostics mirror the fit on good data.
+{
+  const samples = [
+    { dotIndex: 0, ratio: { hx: 0.5, hy: 0.5 } },
+    { dotIndex: 0, ratio: { hx: 0.51, hy: 0.49 } },
+    { dotIndex: 1, ratio: { hx: 0.35, hy: 0.35 } },
+    { dotIndex: 2, ratio: { hx: 0.65, hy: 0.35 } },
+    { dotIndex: 3, ratio: { hx: 0.35, hy: 0.65 } },
+    { dotIndex: 4, ratio: { hx: 0.65, hy: 0.65 } },
+  ];
+  const desc = describeFit(samples, 5);
+  check("desc spreadX", desc.spreadX, 0.155, 1e-9);
+  check("desc spreadY", desc.spreadY, 0.155, 1e-9);
+  check("desc dot0 n", desc.dots[0].samples, 2);
+  check("desc dot4 n", desc.dots[4].samples, 1);
+  check(
+    "desc dot0 mean",
+    desc.dots[0].meanHx,
+    0.505,
+  );
 }
 
 // 7. Variance + stability

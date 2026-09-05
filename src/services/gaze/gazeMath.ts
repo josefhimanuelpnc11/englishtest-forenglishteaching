@@ -334,7 +334,7 @@ export function fitCalibration(
   };
 }
 
-function averageRatio(
+export function averageRatio(
   ratios: EyeGazeRatio[],
 ): EyeGazeRatio {
   let hx = 0;
@@ -441,4 +441,107 @@ export function isStableBatch(
     variance.vx <= maxVariance &&
     variance.vy <= maxVariance
   );
+}
+
+export interface DotDiagnostic {
+  dotIndex: number;
+  samples: number;
+  meanHx: number;
+  meanHy: number;
+}
+
+export interface FitDiagnostics {
+  spreadX: number;
+  spreadY: number;
+  minSpread: number;
+  centerPresent: boolean;
+  dots: DotDiagnostic[];
+}
+
+/**
+ * Explains a fit in numbers: per-dot sample counts
+ * and means plus the spreads the gate judges.
+ * Shown on the calibration error screen so a failed
+ * run reports WHY it failed (frozen identical values
+ * vs genuinely tiny eye movement), instead of only
+ * "perbaiki pencahayaan".
+ */
+export function describeFit(
+  samples: CalibrationSample[],
+  dotCount: number,
+): FitDiagnostics {
+  const dots: DotDiagnostic[] = [];
+
+  for (
+    let dotIndex = 0;
+    dotIndex < dotCount;
+    dotIndex += 1
+  ) {
+    const ratios = samples
+      .filter(
+        (sample) =>
+          sample.dotIndex === dotIndex,
+      )
+      .map(
+        (sample): EyeGazeRatio =>
+          sample.ratio,
+      );
+
+    const mean =
+      ratios.length > 0
+        ? averageRatio(ratios)
+        : { hx: NaN, hy: NaN };
+
+    dots.push({
+      dotIndex,
+      samples: ratios.length,
+      meanHx: mean.hx,
+      meanHy: mean.hy,
+    });
+  }
+
+  const centerPresent = samples.some(
+    (sample) => sample.dotIndex === 0,
+  );
+
+  const centerMean =
+    centerPresent
+      ? averageRatio(
+          samples
+            .filter(
+              (sample) =>
+                sample.dotIndex === 0,
+            )
+            .map(
+              (sample): EyeGazeRatio =>
+                sample.ratio,
+            ),
+        )
+      : { hx: NaN, hy: NaN };
+
+  let minHx = centerMean.hx;
+  let maxHx = centerMean.hx;
+  let minHy = centerMean.hy;
+  let maxHy = centerMean.hy;
+
+  for (const sample of samples) {
+    minHx = Math.min(minHx, sample.ratio.hx);
+    maxHx = Math.max(maxHx, sample.ratio.hx);
+    minHy = Math.min(minHy, sample.ratio.hy);
+    maxHy = Math.max(maxHy, sample.ratio.hy);
+  }
+
+  return {
+    spreadX: Math.max(
+      centerMean.hx - minHx,
+      maxHx - centerMean.hx,
+    ),
+    spreadY: Math.max(
+      centerMean.hy - minHy,
+      maxHy - centerMean.hy,
+    ),
+    minSpread: MIN_CALIBRATION_SPREAD,
+    centerPresent,
+    dots,
+  };
 }

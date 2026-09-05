@@ -11,6 +11,8 @@ import type { LandmarkStatus } from "../services/gaze/FaceLandmarkMonitor";
 
 import {
   CALIBRATION_DOTS,
+  averageRatio,
+  describeFit,
   fitCalibration,
   isStableBatch,
   mapGaze,
@@ -57,6 +59,16 @@ const MAX_SAMPLE_VARIANCE = 0.002;
 const MAX_DOT_RETRIES = 2;
 
 /**
+ * Consecutive bit-identical gaze ratios before the
+ * pipeline is declared frozen. Live video never
+ * repeats float ratios exactly; a frozen video
+ * element (or locked landmarks, e.g. a static
+ * glasses glint) does — and sails through variance
+ * checks with 0, only to die at the spread gate.
+ */
+const FROZEN_IDENTICAL_LIMIT = 4;
+
+/**
  * Time allowed for the model pipeline to produce
  * its first usable frame before giving up.
  */
@@ -73,6 +85,13 @@ interface UseGazeCalibrationResult {
   references: GazeReferences | null;
 
   /**
+   * Compact numbers explaining a failed fit
+   * (per-dot counts/means + measured spreads).
+   * Shown on the error screen for diagnosis.
+   */
+  diagnostics: string | null;
+
+  /**
    * Live mapped gaze point (after calibration),
    * for the Phase 1 debug view.
    */
@@ -84,6 +103,32 @@ interface UseGazeCalibrationResult {
    * the only way out of a failure.
    */
   retry: () => void;
+}
+
+function formatDiagnostics(
+  samples: CalibrationSample[],
+  dotCount: number,
+): string {
+  const described = describeFit(
+    samples,
+    dotCount,
+  );
+
+  const dots = described.dots
+    .map(
+      (dot) =>
+        `#${dot.dotIndex} n=${dot.samples} ` +
+        `(${dot.meanHx.toFixed(3)},` +
+        `${dot.meanHy.toFixed(3)})`,
+    )
+    .join(" | ");
+
+  return (
+    `rentang-x ${described.spreadX.toFixed(3)} | ` +
+    `rentang-y ${described.spreadY.toFixed(3)} | ` +
+    `batas ${described.minSpread.toFixed(3)} || ` +
+    dots
+  );
 }
 
 function shuffledDots(count: number): number[] {
@@ -152,6 +197,9 @@ export function useGazeCalibration(
   const [error, setError] =
     useState<string | null>(null);
 
+  const [diagnostics, setDiagnostics] =
+    useState<string | null>(null);
+
   const [references, setReferences] =
     useState<GazeReferences | null>(null);
 
@@ -175,6 +223,11 @@ export function useGazeCalibration(
   const dotStartRef = useRef(0);
   const dotIndexRef = useRef(0);
   const retriesRef = useRef(0);
+
+  const lastRatioRef =
+    useRef<EyeGazeRatio | null>(null);
+
+  const frozenCountRef = useRef(0);
   const phaseRef = useRef(phase);
 
   const windowTimerRef =
@@ -259,6 +312,13 @@ export function useGazeCalibration(
       );
 
       if (!refs) {
+        setDiagnostics(
+          formatDiagnostics(
+            allSamples,
+            dotsTotal,
+          ),
+        );
+
         finishWithError(
           "Kalibrasi gagal dihitung. " +
             "Perbaiki pencahayaan, lalu " +
@@ -277,6 +337,7 @@ export function useGazeCalibration(
       onCompleteRef.current(refs);
     },
     [
+      dotsTotal,
       clearDotWindow,
       clearPrepTimer,
       finishWithError,
@@ -400,6 +461,18 @@ export function useGazeCalibration(
         dotSamples.length === 1 ||
         stable
       ) {
+        const mean = averageRatio(
+          dotSamples,
+        );
+
+        console.log(
+          "[GAZE] Dot accepted:",
+          currentDot,
+          `n=${dotSamples.length}`,
+          `mean=(${mean.hx.toFixed(3)},` +
+            `${mean.hy.toFixed(3)})`,
+        );
+
         advanceFromDot();
         return;
       }
@@ -453,6 +526,42 @@ export function useGazeCalibration(
       ) {
         return;
       }
+
+      // Frozen pipeline tripwire: live video never
+      // repeats float ratios bit-identically. Four
+      // identical frames in a row means the video
+      // element is stuck (or landmarks are locked,
+      // e.g. a static glasses glint) — such frames
+      // would sail through variance checks with 0
+      // and die opaquely at the spread gate.
+      const lastRatio = lastRatioRef.current;
+
+      if (
+        lastRatio &&
+        lastRatio.hx === status.gaze.hx &&
+        lastRatio.hy === status.gaze.hy
+      ) {
+        frozenCountRef.current += 1;
+
+        if (
+          frozenCountRef.current >=
+          FROZEN_IDENTICAL_LIMIT
+        ) {
+          finishWithError(
+            "Gambar kamera terdeteksi diam " +
+              "(nilai tidak berubah). Jika " +
+              "memakai kacamata, periksa " +
+              "pantulan cahaya; jika tidak, " +
+              "refresh halaman. Lalu ulangi.",
+          );
+
+          return;
+        }
+      } else {
+        frozenCountRef.current = 0;
+      }
+
+      lastRatioRef.current = status.gaze;
 
       const currentDot = dotIndexRef.current;
 
@@ -509,11 +618,15 @@ export function useGazeCalibration(
     retriesRef.current = 0;
     dotStartRef.current = 0;
 
+    lastRatioRef.current = null;
+    frozenCountRef.current = 0;
+
     setPhase("sampling");
     setDotIndex(0);
     setSamplesInDot(0);
     setRetriesInDot(0);
     setError(null);
+    setDiagnostics(null);
     setReferences(null);
 
     // Model pipeline dead on arrival: fail loudly
@@ -572,6 +685,7 @@ export function useGazeCalibration(
     samplesInDot,
     retriesInDot,
     error,
+    diagnostics,
     references,
     livePoint,
     liveStatus,

@@ -35,6 +35,7 @@ export function GazeCalibrationPanel({
     dotsTotal,
     retriesInDot,
     error,
+    diagnostics,
     livePoint,
     liveStatus,
     retry,
@@ -121,6 +122,12 @@ export function GazeCalibrationPanel({
           <p className="gaze-error">
             {error ?? "Kalibrasi gagal."}
           </p>
+
+          {diagnostics && (
+            <p className="gaze-diagnostics">
+              {diagnostics}
+            </p>
+          )}
 
           <button
             className="primary-button gaze-retry"

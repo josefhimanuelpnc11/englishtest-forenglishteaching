@@ -665,11 +665,10 @@ function App() {
                     }
                   >
                     {gazePassed ? "●" : "○"}{" "}
+                    Kalibrasi mata
                     {gazePassed
-                      ? gazeRefs
-                        ? "Kalibrasi mata selesai"
-                        : "Kalibrasi mata dilewati"
-                      : "Kalibrasi mata"}
+                      ? " selesai"
+                      : ""}
                   </li>
 
                   <li className="info">

@@ -866,7 +866,7 @@ button {
   background: #ef4444;
 
   /* Must match DOT_WINDOW_MS in useGazeCalibration. */
-  animation: gaze-progress-fill 2.2s
+  animation: gaze-progress-fill 3.5s
     linear forwards;
 }
 
@@ -918,9 +918,17 @@ button {
 
   font-size: 14px;
 
-  background: #fef3c7;
+  background: #fee2e2;
 
-  color: #92400e;
+  color: #991b1b;
+
+  font-weight: 600;
+}
+
+.gaze-retry {
+  width: 100%;
+
+  margin-top: 12px;
 }
 
 .gaze-success {

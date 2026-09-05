@@ -33,10 +33,12 @@ export type GazeCalibrationPhase =
  * Exact pacing per dot, identical on every device.
  * Dots advance on this clock — never on inference
  * arrival, so a fast desktop and a slow phone show
- * the same rhythm. Keep in sync with the
+ * the same rhythm. Longer windows collect more
+ * samples per dot, which is what makes the personal
+ * fit accurate. Keep in sync with the
  * `gaze-progress-fill` CSS animation duration.
  */
-const DOT_WINDOW_MS = 2200;
+const DOT_WINDOW_MS = 3500;
 
 /**
  * Samples inside this window after a dot switch
@@ -76,6 +78,12 @@ interface UseGazeCalibrationResult {
    */
   livePoint: GazePoint | null;
   liveStatus: LandmarkStatus | null;
+
+  /**
+   * Manual retry from the error screen —
+   * the only way out of a failure.
+   */
+  retry: () => void;
 }
 
 function shuffledDots(count: number): number[] {
@@ -112,15 +120,19 @@ function shuffledDots(count: number): number[] {
  * samples inside the first SACCADE_IGNORE_MS are
  * discarded (eyes travelling). At the window end the
  * dot is accepted, or retried on empty/shaky data.
- * Never registers violations. No skip path exists —
- * only a technical failure lets the exam proceed
- * without gaze, and that is reported, not chosen.
+ * Never registers violations.
+ *
+ * MANDATORY by design: no skip path, no fail-open.
+ * Any failure lands on the error phase with a manual
+ * retry that restarts the whole flow; the exam can
+ * only start after a successful fit, and only a
+ * successful fit calls onComplete.
  */
 export function useGazeCalibration(
   mediaStream: MediaStream | null,
   enabled: boolean,
   onComplete: (
-    references: GazeReferences | null,
+    references: GazeReferences,
   ) => void,
 ): UseGazeCalibrationResult {
   const [phase, setPhase] =
@@ -142,6 +154,13 @@ export function useGazeCalibration(
 
   const [references, setReferences] =
     useState<GazeReferences | null>(null);
+
+  /**
+   * Bumped by retry(): restarts the whole flow
+   * (fresh dot order, fresh monitor session).
+   */
+  const [retryNonce, setRetryNonce] =
+    useState(0);
 
   const [liveStatus, setLiveStatus] =
     useState<LandmarkStatus | null>(null);
@@ -174,12 +193,28 @@ export function useGazeCalibration(
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
+  /**
+   * Manual retry from the error screen. Restarts
+   * the whole flow (fresh dot order + monitor).
+   * This is the ONLY way out of an error — there
+   * is no skip.
+   */
+  const retry = useCallback(() => {
+    setDotOrder(
+      shuffledDots(CALIBRATION_DOTS.length),
+    );
+
+    setRetryNonce(
+      (previous) => previous + 1,
+    );
+  }, []);
+
   const dotsTotal = CALIBRATION_DOTS.length;
 
-  const dotOrder = useMemo(
-    () => shuffledDots(dotsTotal),
-    [dotsTotal],
-  );
+  const [dotOrder, setDotOrder] =
+    useState<number[]>(() =>
+      shuffledDots(dotsTotal),
+    );
 
   const clearDotWindow = useCallback(() => {
     if (windowTimerRef.current !== null) {
@@ -207,7 +242,9 @@ export function useGazeCalibration(
       clearPrepTimer();
       setError(message);
       setPhase("error");
-      onCompleteRef.current(null);
+      // Deliberately no onComplete: without a fit
+      // there is nothing to proceed with. The UI
+      // offers a manual retry instead.
     },
     [clearDotWindow, clearPrepTimer],
   );
@@ -224,7 +261,8 @@ export function useGazeCalibration(
       if (!refs) {
         finishWithError(
           "Kalibrasi gagal dihitung. " +
-            "Deteksi mata dilewati.",
+            "Perbaiki pencahayaan, lalu " +
+            "ulangi dari awal.",
         );
         return;
       }
@@ -276,18 +314,18 @@ export function useGazeCalibration(
 
     retriesRef.current += 1;
     setRetriesInDot(retriesRef.current);
+        if (
+          retriesRef.current >
+          MAX_DOT_RETRIES
+        ) {
+          finishWithError(
+            "Kalibrasi gagal — pandangan " +
+              "tidak stabil. Duduk tenang, " +
+              "lalu ulangi dari awal.",
+          );
 
-    if (
-      retriesRef.current > MAX_DOT_RETRIES
-    ) {
-      finishWithError(
-        "Kalibrasi gagal — pandangan " +
-          "tidak stabil. Deteksi mata " +
-          "dilewati.",
-      );
-
-      return;
-    }
+          return;
+        }
 
     console.warn(
       "[GAZE] Dot failed, retrying:",
@@ -489,10 +527,9 @@ export function useGazeCalibration(
           dotStartRef.current === 0
         ) {
           finishWithError(
-            "Model mata tidak merespons. " +
-              "Periksa koneksi lalu refresh, " +
-              "atau lanjutkan tanpa " +
-              "deteksi mata.",
+            "Model mata tidak merespons " +
+              "dalam 20 detik. Periksa " +
+              "koneksi, lalu ulangi.",
           );
         }
       }, FIRST_FRAME_TIMEOUT_MS);
@@ -507,8 +544,7 @@ export function useGazeCalibration(
     monitor.start().catch(() => {
       finishWithError(
         "Deteksi mata gagal dimulai. " +
-          "Periksa koneksi lalu refresh, atau " +
-          "lanjutkan tanpa deteksi mata.",
+          "Periksa koneksi, lalu ulangi.",
       );
     });
 
@@ -521,6 +557,7 @@ export function useGazeCalibration(
   }, [
     enabled,
     mediaStream,
+    retryNonce,
     handleStatus,
     finishWithError,
     clearDotWindow,
@@ -538,5 +575,6 @@ export function useGazeCalibration(
     references,
     livePoint,
     liveStatus,
+    retry,
   };
 }

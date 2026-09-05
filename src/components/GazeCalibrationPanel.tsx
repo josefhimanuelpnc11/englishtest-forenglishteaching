@@ -37,6 +37,7 @@ export function GazeCalibrationPanel({
     error,
     livePoint,
     liveStatus,
+    retry,
   } = useGazeCalibration(
     mediaStream,
     enabled,
@@ -116,12 +117,18 @@ export function GazeCalibrationPanel({
       <strong>Kalibrasi Mata</strong>
 
       {phase === "error" && (
-        <p className="gaze-error">
-          {error ??
-            "Kalibrasi gagal."}{" "}
-          Ujian bisa dilanjut tanpa deteksi
-          mata.
-        </p>
+        <>
+          <p className="gaze-error">
+            {error ?? "Kalibrasi gagal."}
+          </p>
+
+          <button
+            className="primary-button gaze-retry"
+            onClick={retry}
+          >
+            Ulangi Kalibrasi
+          </button>
+        </>
       )}
 
       {phase === "done" && (

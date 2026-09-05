@@ -89,6 +89,17 @@ export class ViolationEngine {
           examRules.rules.CONTEXT_MENU,
         severity: "LOW",
       },
+
+      /**
+       * Warning-grade by design: gaze is coarse,
+       * so it costs points but can never be
+       * critical or end an exam on its own.
+       */
+      LOOK_AWAY: {
+        score:
+          examRules.rules.LOOK_AWAY,
+        severity: "LOW",
+      },
     };
   }
 

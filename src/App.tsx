@@ -14,6 +14,8 @@ import { FaceWarningBanner } from "./components/FaceWarningBanner";
 
 import { GazeCalibrationPanel } from "./components/GazeCalibrationPanel";
 
+import { LookAwayBanner } from "./components/LookAwayBanner";
+
 import { QuestionCard } from "./components/QuestionCard";
 
 import { QuestionNavigator } from "./components/QuestionNavigator";
@@ -313,6 +315,7 @@ function App() {
     violationScore,
     faceStatus,
     faceError,
+    gazeStatus,
   } = useProctoring({
     exam: demoExam,
 
@@ -320,6 +323,8 @@ function App() {
       started && !isSubmitted,
 
     mediaStream: cameraStream,
+
+    gazeReferences: gazeRefs,
 
     onAutoSubmit: (
       violations,
@@ -762,6 +767,10 @@ function App() {
         <section className="exam-main">
           <FaceWarningBanner
             status={faceStatus}
+          />
+
+          <LookAwayBanner
+            status={gazeStatus}
           />
 
           <QuestionCard

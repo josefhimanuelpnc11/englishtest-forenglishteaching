@@ -30,6 +30,7 @@ export const demoExam: Exam = {
       WINDOW_BLUR: 1,
       SHORTCUT: 1,
       CONTEXT_MENU: 1,
+      LOOK_AWAY: 1,
     },
   },
 

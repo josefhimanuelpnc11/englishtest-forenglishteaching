@@ -646,6 +646,61 @@ button {
   opacity: 0.9;
 }
 
+.lookaway-banner {
+  position: fixed;
+
+  top: 0;
+
+  left: 0;
+
+  right: 0;
+
+  z-index: 100;
+
+  padding: calc(
+      18px +
+        env(safe-area-inset-top, 0px)
+    )
+    24px 18px;
+
+  border-radius: 0;
+
+  background: #b45309;
+
+  color: white;
+
+  text-align: center;
+
+  box-shadow:
+    0 8px 30px
+      rgba(180, 83, 9, 0.35);
+
+  animation: face-warning-pulse 1.2s
+    ease-in-out infinite;
+}
+
+.lookaway-banner strong {
+  display: block;
+
+  font-size: 20px;
+
+  line-height: 1.4;
+}
+
+.lookaway-banner p {
+  margin: 8px 0 0;
+
+  font-size: 14px;
+
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .lookaway-banner strong {
+    font-size: 22px;
+  }
+}
+
 @media (max-width: 640px) {
   .face-warning-banner strong {
     font-size: 24px;

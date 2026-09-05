@@ -15,6 +15,12 @@ import type { FaceMonitorStatus } from "../services/proctoring/types";
 
 import { BrowserMonitor } from "../services/proctoring/BrowserMonitor.ts";
 
+import { GazeMonitor } from "../services/proctoring/GazeMonitor";
+
+import type { GazeStatus } from "../services/proctoring/GazeMonitor";
+
+import type { GazeReferences } from "../services/gaze/gazeMath";
+
 import { OnnxAudioMonitor } from "../services/proctoring/OnnxAudioMonitor";
 
 import { OnnxFaceMonitor } from "../services/proctoring/OnnxFaceMonitor";
@@ -38,6 +44,14 @@ interface UseProctoringProps {
   enabled: boolean;
   mediaStream: MediaStream | null;
 
+  /**
+   * Personal gaze references from pre-exam
+   * calibration. Null (skipped/failed) disables
+   * gaze monitoring entirely — the exam proceeds
+   * on face + browser signals alone.
+   */
+  gazeReferences: GazeReferences | null;
+
   onAutoSubmit?: (
     violations: ViolationEvent[],
     score: number,
@@ -48,6 +62,7 @@ export function useProctoring({
   exam,
   enabled,
   mediaStream,
+  gazeReferences,
   onAutoSubmit,
 }: UseProctoringProps) {
   const [violations, setViolations] =
@@ -69,6 +84,9 @@ export function useProctoring({
   const [faceError, setFaceError] =
     useState<string | null>(null);
 
+  const [gazeStatus, setGazeStatus] =
+    useState<GazeStatus | null>(null);
+
   const engineRef =
     useRef<ViolationEngine | null>(null);
 
@@ -77,6 +95,9 @@ export function useProctoring({
 
   const faceMonitorRef =
     useRef<OnnxFaceMonitor | null>(null);
+
+  const gazeMonitorRef =
+    useRef<GazeMonitor | null>(null);
 
   const audioMonitorRef =
     useRef<OnnxAudioMonitor | null>(null);
@@ -146,6 +167,17 @@ export function useProctoring({
     [],
   );
 
+  /**
+   * Live gaze snapshot for the warning banner.
+   * Same stability contract as face status.
+   */
+  const handleGazeStatus = useCallback(
+    (status: GazeStatus) => {
+      setGazeStatus(status);
+    },
+    [],
+  );
+
   const registerViolation = useCallback(
     (
       type: ViolationType,
@@ -166,6 +198,13 @@ export function useProctoring({
         CUT: 1000,
         SHORTCUT: 1000,
         CONTEXT_MENU: 1000,
+        /**
+         * Generous backstop: gaze flickers more
+         * than other signals, so repeats stay rare
+         * and meaningful (the monitor's own latch
+         * already prevents same-episode repeats).
+         */
+        LOOK_AWAY: 8000,
         CAMERA_DISABLED: 0,
       };
 
@@ -402,6 +441,66 @@ export function useProctoring({
   ]);
 
   /**
+   * Gaze-based monitoring (look-away detection).
+   *
+   * Only runs with personal calibration references
+   * from the pre-exam step. Skipped/failed
+   * calibration (null) means gaze stays off and the
+   * exam relies on face + browser signals.
+   * Fail-open: startup failure only logs, the exam
+   * continues unaffected.
+   */
+  useEffect(() => {
+    if (
+      !enabled ||
+      !mediaStream ||
+      !gazeReferences
+    ) {
+      gazeMonitorRef.current?.stop();
+      gazeMonitorRef.current = null;
+
+      setGazeStatus(null);
+
+      return;
+    }
+
+    setGazeStatus(null);
+
+    gazeMonitorRef.current =
+      new GazeMonitor(
+        mediaStream,
+        registerViolation,
+        gazeReferences,
+        { onStatus: handleGazeStatus },
+      );
+
+    gazeMonitorRef.current
+      .start()
+      .then(() => {
+        console.log(
+          "[PROCTORING] Gaze monitor started successfully",
+        );
+      })
+      .catch((error) => {
+        console.error(
+          "[PROCTORING] Gaze monitor startup failed (exam continues without gaze):",
+          error,
+        );
+      });
+
+    return () => {
+      gazeMonitorRef.current?.stop();
+      gazeMonitorRef.current = null;
+    };
+  }, [
+    enabled,
+    mediaStream,
+    gazeReferences,
+    registerViolation,
+    handleGazeStatus,
+  ]);
+
+  /**
    * Camera availability watchdog.
    *
    * - If the stream never appears within the grace
@@ -544,6 +643,7 @@ export function useProctoring({
     violationScore,
     faceStatus,
     faceError,
+    gazeStatus,
     registerViolation,
   };
 }

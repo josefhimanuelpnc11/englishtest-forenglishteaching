@@ -37,6 +37,7 @@ export interface ExamRules {
     WINDOW_BLUR: number;
     SHORTCUT: number;
     CONTEXT_MENU: number;
+    LOOK_AWAY: number;
   };
 }
 
@@ -60,7 +61,8 @@ export type ViolationType =
   | "CAMERA_DISABLED"
   | "WINDOW_BLUR"
   | "SHORTCUT"
-  | "CONTEXT_MENU";
+  | "CONTEXT_MENU"
+  | "LOOK_AWAY";
 
 export type ViolationSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 

@@ -71,10 +71,16 @@ const FROZEN_IDENTICAL_LIMIT = 4;
 /**
  * Head drift (normalized frame units) above which
  * a failed fit is blamed on head-aiming instead of
- * lighting: the head did the looking, so the eyes
- * never had to move.
+ * lighting. Set in the rotational-aiming range: a
+ * ~5° in-place head turn (or phone rotated toward
+ * each dot) moves the midpoint only ~0.02 while
+ * keeping the eyes centered — exactly the
+ * signature of a frozen horizontal span with a
+ * healthy vertical one. Natural sway stays well
+ * below this; the message advises, and retrying
+ * is free, so a borderline call costs nothing.
  */
-const HEAD_DRIFT_LIMIT = 0.05;
+const HEAD_DRIFT_LIMIT = 0.02;
 
 /**
  * Time allowed for the model pipeline to produce
@@ -338,9 +344,10 @@ export function useGazeCalibration(
           HEAD_DRIFT_LIMIT
         ) {
           finishWithError(
-            "Kepala terlalu banyak bergerak " +
-              "saat kalibrasi. Tahan kepala " +
-              "DIAM dan gerakkan HANYA bola " +
+            "Kepala/HP terlalu banyak " +
+              "bergerak saat kalibrasi. " +
+              "Sandarkan HP, tahan kepala " +
+              "DIAM, gerakkan HANYA bola " +
               "mata, lalu ulangi dari awal.",
           );
 

@@ -5,10 +5,16 @@ import {
 
 import {
   EXPECTED_LANDMARK_COUNT,
+  LEFT_EYE,
+  RIGHT_EYE,
+  averagePoint,
   combinedGazeRatio,
 } from "./gazeMath";
 
-import type { EyeGazeRatio } from "./gazeMath";
+import type {
+  EyeGazeRatio,
+  Point2D,
+} from "./gazeMath";
 
 export interface LandmarkStatus {
   faceCount: number;
@@ -18,6 +24,13 @@ export interface LandmarkStatus {
    * measurable face is present.
    */
   gaze: EyeGazeRatio | null;
+
+  /**
+   * Midpoint of the four eye corners (head
+   * position proxy), or null when unmeasurable.
+   * Used to detect head-aiming during calibration.
+   */
+  head: Point2D | null;
 
   landmarkCount: number;
 
@@ -301,6 +314,7 @@ export class FaceLandmarkMonitor {
       this.onStatus({
         faceCount: 0,
         gaze: null,
+        head: null,
         landmarkCount: 0,
         consecutiveErrors:
           this.consecutiveErrors,
@@ -323,7 +337,7 @@ export class FaceLandmarkMonitor {
   private async detectOnce(): Promise<
     Pick<
       LandmarkStatus,
-      "faceCount" | "gaze" | "landmarkCount"
+      "faceCount" | "gaze" | "head" | "landmarkCount"
     >
   > {
     if (!this.landmarker) {
@@ -356,6 +370,7 @@ export class FaceLandmarkMonitor {
       return {
         faceCount: faces.length,
         gaze: null,
+        head: null,
         landmarkCount: 0,
       };
     }
@@ -369,22 +384,54 @@ export class FaceLandmarkMonitor {
       return {
         faceCount: 1,
         gaze: null,
+        head: null,
         landmarkCount: landmarks.length,
       };
     }
 
-    const gaze = combinedGazeRatio(
-      landmarks.map((point) => ({
-        x: point.x,
-        y: point.y,
-      })),
-    );
+    const points = landmarks.map((point) => ({
+      x: point.x,
+      y: point.y,
+    }));
+
+    const gaze = combinedGazeRatio(points);
 
     return {
       faceCount: 1,
       gaze,
+      head: this.headMidpoint(points),
       landmarkCount: landmarks.length,
     };
+  }
+
+  /**
+   * Midpoint of the four eye corners — a stable
+   * head-position proxy from already-known indices.
+   */
+  private headMidpoint(
+    points: Point2D[],
+  ): Point2D | null {
+    const corners = [
+      points[LEFT_EYE.outer],
+      points[LEFT_EYE.inner],
+      points[RIGHT_EYE.outer],
+      points[RIGHT_EYE.inner],
+    ];
+
+    if (
+      corners.some(
+        (corner) =>
+          !corner ||
+          !Number.isFinite(corner.x) ||
+          !Number.isFinite(corner.y),
+      )
+    ) {
+      return null;
+    }
+
+    return averagePoint(
+      corners as Point2D[],
+    );
   }
 
   private async waitForVideoReady(): Promise<void> {

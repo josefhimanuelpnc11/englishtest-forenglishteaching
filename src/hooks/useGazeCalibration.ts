@@ -69,6 +69,14 @@ const MAX_DOT_RETRIES = 2;
 const FROZEN_IDENTICAL_LIMIT = 4;
 
 /**
+ * Head drift (normalized frame units) above which
+ * a failed fit is blamed on head-aiming instead of
+ * lighting: the head did the looking, so the eyes
+ * never had to move.
+ */
+const HEAD_DRIFT_LIMIT = 0.05;
+
+/**
  * Time allowed for the model pipeline to produce
  * its first usable frame before giving up.
  */
@@ -126,7 +134,8 @@ function formatDiagnostics(
   return (
     `rentang-x ${described.spreadX.toFixed(3)} | ` +
     `rentang-y ${described.spreadY.toFixed(3)} | ` +
-    `batas ${described.minSpread.toFixed(3)} || ` +
+    `batas ${described.minSpread.toFixed(3)} | ` +
+    `kepala ${described.headDrift.toFixed(3)} || ` +
     dots
   );
 }
@@ -312,12 +321,31 @@ export function useGazeCalibration(
       );
 
       if (!refs) {
+        const described = describeFit(
+          allSamples,
+          dotsTotal,
+        );
+
         setDiagnostics(
           formatDiagnostics(
             allSamples,
             dotsTotal,
           ),
         );
+
+        if (
+          described.headDrift >
+          HEAD_DRIFT_LIMIT
+        ) {
+          finishWithError(
+            "Kepala terlalu banyak bergerak " +
+              "saat kalibrasi. Tahan kepala " +
+              "DIAM dan gerakkan HANYA bola " +
+              "mata, lalu ulangi dari awal.",
+          );
+
+          return;
+        }
 
         finishWithError(
           "Kalibrasi gagal dihitung. " +
@@ -568,6 +596,7 @@ export function useGazeCalibration(
       samplesRef.current.push({
         dotIndex: currentDot,
         ratio: status.gaze,
+        head: status.head ?? undefined,
       });
 
       setSamplesInDot(

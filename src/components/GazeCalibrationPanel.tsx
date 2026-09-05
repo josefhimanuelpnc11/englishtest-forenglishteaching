@@ -66,7 +66,7 @@ export function GazeCalibrationPanel({
             : `Lihat titik merah ${Math.min(
                 dotIndex + 1,
                 dotsTotal,
-              )}/${dotsTotal} — tahan pandangan, jangan gerak`}
+              )}/${dotsTotal} — TAHAN KEPALA DIAM, gerakkan hanya bola mata`}
         </p>
 
         {CALIBRATION_DOTS.map(

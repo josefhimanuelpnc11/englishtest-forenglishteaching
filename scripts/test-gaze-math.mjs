@@ -199,6 +199,30 @@ const RIGHT = {
     desc.dots[0].meanHx,
     0.505,
   );
+  check("desc no-head drift", desc.headDrift, 0);
+}
+
+// 6d. Head drift flags head-aiming: same head
+// everywhere -> 0; head following dots -> large.
+{
+  const steadyHead = [0, 1, 2].map((dotIndex) => ({
+    dotIndex,
+    ratio: { hx: 0.5, hy: 0.5 },
+    head: { x: 0.5, y: 0.5 },
+  }));
+  check(
+    "steady head drift",
+    describeFit(steadyHead, 3).headDrift,
+    0,
+  );
+
+  const movingHead = [
+    { dotIndex: 0, ratio: { hx: 0.5, hy: 0.5 }, head: { x: 0.5, y: 0.5 } },
+    { dotIndex: 1, ratio: { hx: 0.5, hy: 0.5 }, head: { x: 0.6, y: 0.5 } },
+    { dotIndex: 2, ratio: { hx: 0.5, hy: 0.5 }, head: { x: 0.4, y: 0.5 } },
+  ];
+  const drifted = describeFit(movingHead, 3);
+  check("moving head drift", drifted.headDrift, 0.1, 1e-9);
 }
 
 // 7. Variance + stability

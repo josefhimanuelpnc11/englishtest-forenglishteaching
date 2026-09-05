@@ -268,6 +268,16 @@ export function combinedGazeRatio(
 export interface CalibrationSample {
   dotIndex: number;
   ratio: EyeGazeRatio;
+
+  /**
+   * Eye-corner midpoint (head position proxy) at
+   * sample time. Present when the pipeline tracks
+   * it; used to detect head-aiming (turning the
+   * head/phone instead of the eyeballs, which
+   * freezes ratios no matter how well the user
+   * "looks at the dots").
+   */
+  head?: Point2D;
 }
 
 /**
@@ -455,6 +465,15 @@ export interface FitDiagnostics {
   spreadY: number;
   minSpread: number;
   centerPresent: boolean;
+
+  /**
+   * Max distance of any dot's head mean from the
+   * overall head mean (normalized frame units).
+   * Large drift + small spread = the head did the
+   * looking, not the eyes.
+   */
+  headDrift: number;
+
   dots: DotDiagnostic[];
 }
 
@@ -531,6 +550,48 @@ export function describeFit(
     maxHy = Math.max(maxHy, sample.ratio.hy);
   }
 
+  const headMeans: Point2D[] = [];
+
+  for (
+    let dotIndex = 0;
+    dotIndex < dotCount;
+    dotIndex += 1
+  ) {
+    const heads = samples
+      .filter(
+        (sample) =>
+          sample.dotIndex === dotIndex &&
+          sample.head != null,
+      )
+      .map(
+        (sample): Point2D =>
+          sample.head as Point2D,
+      );
+
+    if (heads.length > 0) {
+      headMeans.push(averagePoint(heads));
+    }
+  }
+
+  const overallHead =
+    headMeans.length > 0
+      ? averagePoint(headMeans)
+      : null;
+
+  let headDrift = 0;
+
+  if (overallHead) {
+    for (const mean of headMeans) {
+      headDrift = Math.max(
+        headDrift,
+        Math.hypot(
+          mean.x - overallHead.x,
+          mean.y - overallHead.y,
+        ),
+      );
+    }
+  }
+
   return {
     spreadX: Math.max(
       centerMean.hx - minHx,
@@ -542,6 +603,7 @@ export function describeFit(
     ),
     minSpread: MIN_CALIBRATION_SPREAD,
     centerPresent,
+    headDrift,
     dots,
   };
 }

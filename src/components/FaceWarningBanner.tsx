@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import type { FaceMonitorStatus } from "../services/proctoring/types";
 
 interface FaceWarningBannerProps {
@@ -13,28 +15,42 @@ interface FaceWarningBannerProps {
  * fires (~2.7s) — and stays up until the face
  * returns, so the participant has a fair chance
  * to correct before being penalized.
+ *
+ * Pinned to the viewport (not the page flow) so it
+ * stays visible on phones no matter how far the
+ * student has scrolled, plus a vibration pulse on
+ * appearance for devices that support it.
  */
 export function FaceWarningBanner({
   status,
 }: FaceWarningBannerProps) {
-  if (!status) {
-    return null;
-  }
+  const visible =
+    status != null &&
+    status.inferenceCount > 0 &&
+    status.consecutiveInferenceErrors ===
+      0 &&
+    status.faceCount === 0 &&
+    status.noFaceEvidence >= 1;
 
-  if (status.inferenceCount === 0) {
-    return null;
-  }
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
 
-  if (
-    status.consecutiveInferenceErrors > 0
-  ) {
-    return null;
-  }
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        "vibrate" in navigator
+      ) {
+        navigator.vibrate(400);
+      }
+    } catch {
+      // Vibration unsupported — the visual
+      // banner is enough.
+    }
+  }, [visible]);
 
-  if (
-    status.faceCount > 0 ||
-    status.noFaceEvidence < 1
-  ) {
+  if (!visible) {
     return null;
   }
 
